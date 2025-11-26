@@ -655,13 +655,13 @@ dns_rdataset_trimttl(dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
 	REQUIRE(rrsig != NULL);
 
 	/*
-	 * If we accept expired RRsets keep them for no more than 120 seconds.
+	 * If we accept expired RRsets keep them for no more than 3 seconds.
 	 */
 	if (acceptexpired &&
-	    (isc_serial_le(rrsig->timeexpire, ((now + 120) & 0xffffffff)) ||
+	    (isc_serial_le(rrsig->timeexpire, ((now + 3) & 0xffffffff)) ||
 	     isc_serial_le(rrsig->timeexpire, now)))
 	{
-		ttl = 120;
+		ttl = 3;
 	} else if (isc_serial_ge(rrsig->timeexpire, now)) {
 		ttl = rrsig->timeexpire - now;
 	}
