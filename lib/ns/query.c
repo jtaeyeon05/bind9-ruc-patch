@@ -2368,10 +2368,8 @@ mark_secure(ns_client_t *client, dns_db_t *db, dns_name_t *name,
 	}
 
 	now = isc_stdtime_now();
-	unsigned int max_keep = (client->message != NULL &&
-				 (client->message->flags & DNS_MESSAGEFLAG_CD) == 0)
-					? 120U : 3U;
-	dns_rdataset_trimttl(rdataset, sigrdataset, rrsig, now, max_keep);
+	dns_rdataset_trimttl(rdataset, sigrdataset, rrsig, now,
+			     client->view->acceptexpired);
 
 	(void)dns_db_addrdataset(db, node, NULL, client->now, rdataset, 0,
 				 NULL);

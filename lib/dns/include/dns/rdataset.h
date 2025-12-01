@@ -662,13 +662,13 @@ dns_rdataset_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name);
 
 void
 dns_rdataset_trimttl(dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
-			 dns_rdata_rrsig_t *rrsig, isc_stdtime_t now,
-			 unsigned int max_keep_seconds);
+		     dns_rdata_rrsig_t *rrsig, isc_stdtime_t now,
+		     bool acceptexpired);
 /*%<
  * Trim the ttl of 'rdataset' and 'sigrdataset' so that they will expire
- * at or before 'rrsig->expiretime'.  If 'max_keep_seconds' is non-zero and
- * the signature has expired or will expire in the next 'max_keep_seconds'
- * seconds, limit the ttl to be no more than 'max_keep_seconds' seconds.
+ * at or before 'rrsig->expiretime'.  If 'acceptexpired' is true and the
+ * signature has expired or will expire in the next 120 seconds, limit
+ * the ttl to be no more than 120 seconds.
  *
  * The ttl is further limited by the original ttl as stored in 'rrsig'
  * and the original ttl values of 'rdataset' and 'sigrdataset'.

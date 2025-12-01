@@ -49,7 +49,7 @@ ISC_RUN_TEST_IMPL(trimttl) {
 	rrsig.timeexpire = ttltimeexpire;
 	rrsig.originalttl = 1000;
 
-	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, 120U);
+	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, true);
 	assert_int_equal(rdataset.ttl, 800);
 	assert_int_equal(sigrdataset.ttl, 800);
 
@@ -58,7 +58,7 @@ ISC_RUN_TEST_IMPL(trimttl) {
 	rrsig.timeexpire = ttltimenow - 200;
 	rrsig.originalttl = 1000;
 
-	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, 120U);
+	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, true);
 	assert_int_equal(rdataset.ttl, 120);
 	assert_int_equal(sigrdataset.ttl, 120);
 
@@ -68,7 +68,7 @@ ISC_RUN_TEST_IMPL(trimttl) {
 	rrsig.originalttl = 1000;
 
 	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow,
-				 0U);
+			     false);
 	assert_int_equal(rdataset.ttl, 0);
 	assert_int_equal(sigrdataset.ttl, 0);
 
@@ -77,7 +77,7 @@ ISC_RUN_TEST_IMPL(trimttl) {
 	rrsig.timeexpire = ttltimeexpire;
 	rrsig.originalttl = 1000;
 
-	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, 120U);
+	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, true);
 	assert_int_equal(rdataset.ttl, 800);
 	assert_int_equal(sigrdataset.ttl, 800);
 
@@ -86,7 +86,7 @@ ISC_RUN_TEST_IMPL(trimttl) {
 	rrsig.timeexpire = ttltimenow - 200;
 	rrsig.originalttl = 1000;
 
-	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, 120U);
+	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow, true);
 	assert_int_equal(rdataset.ttl, 120);
 	assert_int_equal(sigrdataset.ttl, 120);
 
@@ -96,7 +96,7 @@ ISC_RUN_TEST_IMPL(trimttl) {
 	rrsig.originalttl = 1000;
 
 	dns_rdataset_trimttl(&rdataset, &sigrdataset, &rrsig, ttltimenow,
-				 0U);
+			     false);
 	assert_int_equal(rdataset.ttl, 0);
 	assert_int_equal(sigrdataset.ttl, 0);
 }
