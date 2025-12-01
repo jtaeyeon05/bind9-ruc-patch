@@ -8189,6 +8189,7 @@ rctx_edns(respctx_t *rctx) {
 	 * EDNS support.
 	 */
 	if (rctx->opt == NULL && !EDNSOK(query->addrinfo) &&
+	    (fctx->options & DNS_FETCHOPT_NOVALIDATE) == 0 &&
 	    (query->rmessage->rcode == dns_rcode_noerror ||
 	     query->rmessage->rcode == dns_rcode_nxdomain ||
 	     query->rmessage->rcode == dns_rcode_refused ||
@@ -8203,6 +8204,7 @@ rctx_edns(respctx_t *rctx) {
 				    FCTX_ADDRINFO_NOEDNS0,
 				    FCTX_ADDRINFO_NOEDNS0);
 	} else if (rctx->opt == NULL &&
+		   (fctx->options & DNS_FETCHOPT_NOVALIDATE) == 0 &&
 		   (query->rmessage->flags & DNS_MESSAGEFLAG_TC) == 0 &&
 		   !EDNSOK(query->addrinfo) &&
 		   (query->rmessage->rcode == dns_rcode_noerror ||
