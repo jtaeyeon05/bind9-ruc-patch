@@ -74,6 +74,8 @@
 #include <dns/validator.h>
 #include <dns/zone.h>
 
+#define DNS_RESOLVER_CDADDR_MAXTTL 3U
+
 #ifdef WANT_QUERYTRACE
 #define RTRACE(m)                                                             \
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,                     \
@@ -253,8 +255,7 @@ STATIC_ASSERT(NS_PROCESSING_LIMIT > NS_RR_LIMIT,
  */
 #define MAX_EDNS0_TIMEOUTS 3
 
-#define DNS_RESOLVER_BADCACHETTL(fctx) \
-	(((fctx)->res->lame_ttl > 30) ? (fctx)->res->lame_ttl : 30)
+#define DNS_RESOLVER_BADCACHETTL(fctx) DNS_RESOLVER_CDADDR_MAXTTL
 
 typedef struct fetchctx fetchctx_t;
 
@@ -3055,6 +3056,17 @@ add_bad(fetchctx_t *fctx, dns_message_t *rmessage, dns_adbaddrinfo_t *addrinfo,
 	}
 #endif /* ifdef ENABLE_AFL */
 
+	/*
+	 * If this fetch was started with DNS_FETCHOPT_NOVALIDATE (i.e. from
+	 * a DNSSEC troubleshooting query with CD=1), do not record bad
+	 * server state.  This prevents unvalidated troubleshooting traffic
+	 * from polluting server reputation / RUC decisions used for normal
+	 * validating queries (CD=0).
+	 */
+	if ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0) {
+		return;
+	}
+
 	if (reason == DNS_R_LAME) {
 		fctx->lamecount++;
 	} else {
@@ -5373,6 +5385,17 @@ validated(void *arg) {
 			ttl = 0;
 		}
 
+		/*
+		 * For CD=1 (NOVALIDATE) troubleshooting queries, cap
+		 * negative cache TTL to prevent RUC attacks via cache
+		 * poisoning.
+		 */
+		if ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0 &&
+		    ttl > DNS_RESOLVER_CDADDR_MAXTTL)
+		{
+			ttl = DNS_RESOLVER_CDADDR_MAXTTL;
+		}
+
 		result = ncache_adderesult(message, fctx->cache, node, covers,
 					   now, fctx->res->view->minncachettl,
 					   ttl, val->optout, val->secure,
@@ -6054,9 +6077,31 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 					options |= DNS_DBADD_FORCE;
 				}
 				addedrdataset = ardataset;
-				result = dns_db_addrdataset(
-					fctx->cache, node, NULL, now, rdataset,
-					options, addedrdataset);
+				/*
+				 * For CD=1 (NOVALIDATE) troubleshooting queries,
+				 * cap TTL for pending/insecure data to prevent
+				 * RUC attacks via w/o SIG (unsigned) responses.
+				 */
+				if ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0 &&
+				    (rdataset->type == dns_rdatatype_ns ||
+				     rdataset->type == dns_rdatatype_dnskey ||
+				     rdataset->type == dns_rdatatype_ds ||
+				     rdataset->type == dns_rdatatype_a ||
+				     rdataset->type == dns_rdatatype_aaaa) &&
+				    rdataset->ttl > DNS_RESOLVER_CDADDR_MAXTTL)
+				{
+					uint32_t saved_ttl = rdataset->ttl;
+
+					rdataset->ttl = DNS_RESOLVER_CDADDR_MAXTTL;
+					result = dns_db_addrdataset(
+						fctx->cache, node, NULL, now,
+						rdataset, options, addedrdataset);
+					rdataset->ttl = saved_ttl;
+				} else {
+					result = dns_db_addrdataset(
+						fctx->cache, node, NULL, now,
+						rdataset, options, addedrdataset);
+				}
 				if (result == DNS_R_UNCHANGED) {
 					result = ISC_R_SUCCESS;
 					if (!need_validation &&
@@ -6207,10 +6252,31 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 
 			/*
 			 * Now we can add the rdataset.
+			 * For CD=1 (NOVALIDATE) troubleshooting queries,
+			 * aggressively cap TTL for critical RR types that
+			 * affect RUC decisions (NS, DNSKEY, DS, A, AAAA)
+			 * to prevent cache poisoning attacks.
 			 */
-			result = dns_db_addrdataset(fctx->cache, node, NULL,
-						    now, rdataset, options,
-						    addedrdataset);
+			if ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0 &&
+			    (rdataset->type == dns_rdatatype_a ||
+			     rdataset->type == dns_rdatatype_aaaa ||
+			     rdataset->type == dns_rdatatype_ns ||
+			     rdataset->type == dns_rdatatype_dnskey ||
+			     rdataset->type == dns_rdatatype_ds) &&
+			    rdataset->ttl > DNS_RESOLVER_CDADDR_MAXTTL)
+			{
+				uint32_t saved_ttl = rdataset->ttl;
+
+				rdataset->ttl = DNS_RESOLVER_CDADDR_MAXTTL;
+				result = dns_db_addrdataset(
+					fctx->cache, node, NULL, now, rdataset,
+					options, addedrdataset);
+				rdataset->ttl = saved_ttl;
+			} else {
+				result = dns_db_addrdataset(
+					fctx->cache, node, NULL, now, rdataset,
+					options, addedrdataset);
+			}
 
 			if (result == DNS_R_UNCHANGED) {
 				if (ANSWER(rdataset) && ardataset != NULL &&
